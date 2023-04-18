@@ -1,9 +1,12 @@
+import array
+from typing import List
 import numpy as np
 import pycomlink as pycml
 import xarray as xr
 from PyQt6.QtCore import QRunnable, QObject, QDateTime, pyqtSignal
-
 import input.influx_manager as influx
+from libs.SweepIntersectorLib.SweepIntersector import SweepIntersector
+import matplotlib.pyplot as plt
 
 
 class CalcSignals(QObject):
@@ -23,7 +26,8 @@ class Calculation(QRunnable):
 
     def __init__(self, signals: CalcSignals, results_id: int, links: dict, selection: dict, start: QDateTime,
                  end: QDateTime, interval: int, rolling_vals: int, output_step: int, is_only_overall: bool,
-                 is_output_total: bool, wet_dry_deviation: float, baseline_samples: int, interpol_res, idw_pow,
+                 is_output_total: bool, wet_dry_deviation: float, baseline_samples: int, interpol_res, segment_size,
+                 idw_pow,
                  idw_near, idw_dist, schleiss_val, schleiss_tau):
         QRunnable.__init__(self)
         self.sig = signals
@@ -40,13 +44,13 @@ class Calculation(QRunnable):
         self.wet_dry_deviation = wet_dry_deviation
         self.baseline_samples = baseline_samples
         self.interpol_res = interpol_res
+        self.segment_size = segment_size
         self.idw_pow = idw_pow
         self.idw_near = idw_near
         self.idw_dist = idw_dist
         self.schleiss_val = schleiss_val
         self.schleiss_tau = schleiss_tau
-
-    def run(self):
+    def run(self, ):
         print(f"[CALC ID: {self.results_id}] Rainfall calculation procedure started.", flush=True)
 
         # ////// DATA ACQUISITION \\\\\\
@@ -86,7 +90,6 @@ class Calculation(QRunnable):
             self.sig.progress_signal.emit({'prg_val': 15})
             print(f"[CALC ID: {self.results_id}] Querying done. Got data of {len(influx_data)} units,"
                   f" of total {len(ips)} selected units.")
-
             missing_links = []
             if diff > 0:
                 print(f"[CALC ID: {self.results_id}] {diff} units are not available in selected time window:")
@@ -136,9 +139,9 @@ class Calculation(QRunnable):
                 is_b_in = self.links[link].ip_b in influx_data
 
                 # TODO: load from options list of constant Tx power devices
-                is_constant_tx_power = self.links[link].tech in ("1s10", "ip20G", )
+                is_constant_tx_power = self.links[link].tech in ("1s10", "ip20G",)
                 # TODO: load from options list of bugged techs with missing Tx zeros in InfluxDB
-                is_tx_power_bugged = self.links[link].tech in ("ip10", )
+                is_tx_power_bugged = self.links[link].tech in ("ip10",)
 
                 # skip links, where data of one unit (or both) are not available
                 # but constant Tx power devices are exceptions
@@ -156,7 +159,7 @@ class Calculation(QRunnable):
                     tx_zeros_b = True
                     tx_zeros_a = True
                 elif ("tx_power" not in influx_data[self.links[link].ip_a]) or \
-                     ("tx_power" not in influx_data[self.links[link].ip_b]):
+                        ("tx_power" not in influx_data[self.links[link].ip_b]):
                     # sadly, some devices of certain techs are badly exported from original source, and they are
                     # missing Tx zero values in InfluxDB, so this hack needs to be done
                     # (for other techs, there is no certainty, if original Tx value was zero in fact, or it's a NMS
@@ -185,7 +188,7 @@ class Calculation(QRunnable):
                 # Side/unit A (channel B to A)
                 if (self.selection[link] in (1, 3)) and (self.links[link].ip_a in influx_data):
                     if not tx_zeros_b:
-                        if len(influx_data[self.links[link].ip_a]["rx_power"])\
+                        if len(influx_data[self.links[link].ip_a]["rx_power"]) \
                                 != len(influx_data[self.links[link].ip_b]["tx_power"]):
                             print(f"[CALC ID: {self.results_id}] WARNING: Skipping link ID: {link}. "
                                   f"Non-coherent Rx/Tx data on channel A(rx)_B(tx).", flush=True)
@@ -207,7 +210,7 @@ class Calculation(QRunnable):
                 # Side/unit B (channel A to B)
                 if (self.selection[link] in (2, 3)) and (self.links[link].ip_b in influx_data):
                     if not tx_zeros_a:
-                        if len(influx_data[self.links[link].ip_b]["rx_power"])\
+                        if len(influx_data[self.links[link].ip_b]["rx_power"]) \
                                 != len(influx_data[self.links[link].ip_a]["tx_power"]):
                             print(f"[CALC ID: {self.results_id}] WARNING: Skipping link ID: {link}. "
                                   f"Non-coherent Rx/Tx data on channel B(rx)_A(tx).", flush=True)
@@ -268,7 +271,6 @@ class Calculation(QRunnable):
             curr_link = 0
 
             for link in calc_data:
-
                 # determine wet periods
                 link['wet'] = link.trsl.rolling(time=self.rolling_vals, center=True).std(skipna=False) > \
                               self.wet_dry_deviation
@@ -279,11 +281,11 @@ class Calculation(QRunnable):
                 # determine signal baseline
                 link['baseline'] = pycml.processing.baseline.baseline_constant(trsl=link.trsl, wet=link.wet,
                                                                                n_average_last_dry=self.baseline_samples)
-
+                delta_t = 60 / ((60 / self.interval) * 60)
                 # calculate wet antenna attenuation
                 link['waa'] = pycml.processing.wet_antenna.waa_schleiss_2013(rsl=link.trsl, baseline=link.baseline,
                                                                              wet=link.wet, waa_max=self.schleiss_val,
-                                                                             delta_t=60 / ((60 / self.interval) * 60),
+                                                                             delta_t=1,
                                                                              tau=self.schleiss_tau)
 
                 # calculate final rain attenuation
@@ -310,18 +312,71 @@ class Calculation(QRunnable):
 
             # ***** FIRST PART: Calculate overall rainfall total map ******
             print(f"[CALC ID: {self.results_id}] Resampling rain values for rainfall overall map...")
+            # Creating list for calculating intersections
+            segList = []
 
-            # resample values to 1h means
-            calc_data_1h = xr.concat(objs=[cml.R.resample(time='1h', label='right').mean() for cml in calc_data],
-                                     dim='cml_id').to_dataset()
+            for cml in calc_data:
+                # Putting coordinates into variables
+                SiteA = {"x": cml.site_a_longitude, "y": cml.site_a_latitude}
+                SiteB = {"x": cml.site_b_longitude, "y": cml.site_b_latitude}
 
+                # Append coords to segList
+                segList.append(((float(SiteA["x"].data), float(SiteA["y"].data)), (float(SiteB["x"].data), float(SiteB["y"].data))))
+
+                # Counting distance in meters between Sites
+                distance: float = np.arccos(
+                    np.sin(SiteA["y"] * np.pi / 180) * np.sin(SiteB["y"] * np.pi / 180) + np.cos(
+                        SiteA["y"] * np.pi / 180) * np.cos(SiteB["y"] * np.pi / 180) * np.cos(
+                        SiteB["x"] * np.pi / 180 - SiteA["x"] * np.pi / 180)) * 6371000
+
+                # Dividing link into 'x'm intervals
+                if distance >= self.segment_size:
+                    numberOfPoints = distance / self.segment_size
+                else:
+                    numberOfPoints = 2
+
+                # Calculating gaps between each point in link
+                gap_long = (SiteB["x"] - SiteA["x"]) / np.floor(numberOfPoints)
+                gap_lat = (SiteB["y"] - SiteA["y"]) / np.floor(numberOfPoints)
+
+                # Append into listOfSegments series of digits representing number of segments
+                listOfSegments = []
+                i = 1
+                while i <= np.floor(numberOfPoints) + 1:
+                    listOfSegments.append(i)
+                    i += 1
+                cml['segments'] = listOfSegments
+
+                # Append coordinates of each point into lat_coords & long_coords
+                long_coords = []
+                lat_coords = []
+                step = 0
+                while step <= numberOfPoints:
+                    next_long_point = SiteA["x"] + gap_long * step
+                    next_lat_point = SiteA["y"] + gap_lat * step
+
+                    long_coords.append(next_long_point)
+                    lat_coords.append(next_lat_point)
+                    step += 1
+
+                cml['long_array'] = ('segments', long_coords)
+                cml['lat_array'] = ('segments', lat_coords)
+
+            # Calculating intersections
+            isector = SweepIntersector()
+            isecDic = isector.findIntersections(segList)
+            print("List: ", isecDic)
+            print(segList)
+
+            # combine CMLs into one dataset
+            calc_data = xr.concat(calc_data, dim='cml_id')
+            # calculate 1h means via resample
+            rain_values_1h = calc_data.R.resample(time='1h', label='right').mean()
+            # sum of all 1h means = total
+            rain_values_total = rain_values_1h.mean(dim='channel_id').sum(dim='time')
             self.sig.progress_signal.emit({'prg_val': 93})
 
             print(f"[CALC ID: {self.results_id}] Interpolating spatial data for rainfall overall map...")
-
-            # central points of the links are considered in interpolation algorithms
-            calc_data_1h['lat_center'] = (calc_data_1h.site_a_latitude + calc_data_1h.site_b_latitude) / 2
-            calc_data_1h['lon_center'] = (calc_data_1h.site_a_longitude + calc_data_1h.site_b_longitude) / 2
 
             interpolator = pycml.spatial.interpolator.IdwKdtreeInterpolator(nnear=self.idw_near, p=self.idw_pow,
                                                                             exclude_nan=True,
@@ -332,8 +387,19 @@ class Calculation(QRunnable):
             y_coords = np.arange(self.Y_MIN - self.interpol_res, self.Y_MAX + self.interpol_res, self.interpol_res)
             x_grid, y_grid = np.meshgrid(x_coords, y_coords)
 
-            rain_grid = interpolator(x=calc_data_1h.lon_center, y=calc_data_1h.lat_center,
-                                     z=calc_data_1h.R.mean(dim='channel_id').sum(dim='time'),
+            lats_numpy = calc_data.lat_array.to_numpy()  # convert DataArray into numpy array
+            longs_numpy = calc_data.long_array.to_numpy()  # convert DataArray into numpy array
+            lats_1dim = lats_numpy.ravel()  # convert into 1-dimensional array
+            longs_1dim = longs_numpy.ravel()  # convert into 1-dimensional array
+
+            rain_values_total_numpy = rain_values_total.to_numpy()  # convert DataArray into numpy array
+            # use same rain values for all segments of the link
+            # (using repeating of each value X times, where X is the number of link segments)
+            rain_values_repeated = np.repeat(rain_values_total_numpy, calc_data.segments.size)
+
+            rain_grid = interpolator(x=longs_1dim,
+                                     y=lats_1dim,
+                                     z=rain_values_repeated,
                                      xgrid=x_grid, ygrid=y_grid)
 
             self.sig.progress_signal.emit({'prg_val': 99})
@@ -341,7 +407,7 @@ class Calculation(QRunnable):
             # emit output
             self.sig.overall_done_signal.emit({
                 "id": self.results_id,
-                "link_data": calc_data_1h,
+                "link_data": calc_data,
                 "x_grid": x_grid,
                 "y_grid": y_grid,
                 "rain_grid": rain_grid,
@@ -356,14 +422,12 @@ class Calculation(QRunnable):
                 print(f"[CALC ID: {self.results_id}] Resampling data for rainfall animation maps...")
 
                 # resample data to desired resolution, if needed
-                if self.output_step == 60:   # if case of one hour steps, use already existing resamples
-                    calc_data_steps = calc_data_1h
+                if self.output_step == 60:  # if case of one hour steps, use already existing resamples
+                    rain_values_steps = rain_values_total
                 elif self.output_step > self.interval:
-                    calc_data_steps = xr.concat(
-                        objs=[cml.R.resample(time=f'{self.output_step}m', label='right').mean() for cml in calc_data],
-                        dim='cml_id').to_dataset()
-                elif self.output_step == self.interval:   # in case of same intervals, no resample needed
-                    calc_data_steps = xr.concat(calc_data, dim='cml_id')
+                    rain_values_steps = calc_data.R.resample(time=f'{self.output_step}m', label='right').mean()
+                elif self.output_step == self.interval:  # in case of same intervals, no resample needed
+                    rain_values_steps = calc_data.R
                 else:
                     raise ValueError("Invalid value of output_steps")
 
@@ -373,37 +437,37 @@ class Calculation(QRunnable):
                 # calculate totals instead of intensities, if desired
                 if self.is_output_total:
                     # get calc ratio
-                    time_ratio = 60 / self.output_step   # 60 = 1 hour, since rain intensity is measured in mm/hour
+                    time_ratio = 60 / self.output_step  # 60 = 1 hour, since rain intensity is measured in mm/hour
                     # overwrite values with totals per output step interval
-                    calc_data_steps['R'] = calc_data_steps.R / time_ratio
+                    rain_values_steps = rain_values_steps / time_ratio
 
                 self.sig.progress_signal.emit({'prg_val': 10})
 
                 print(f"[CALC ID: {self.results_id}] Interpolating spatial data for rainfall animation maps...")
 
-                # if output step is 60, it's already done
-                if self.output_step != 60:
-                    # central points of the links are considered in interpolation algorithms
-                    calc_data_steps['lat_center'] = \
-                        (calc_data_steps.site_a_latitude + calc_data_steps.site_b_latitude) / 2
-                    calc_data_steps['lon_center'] = \
-                        (calc_data_steps.site_a_longitude + calc_data_steps.site_b_longitude) / 2
-
                 animation_rain_grids = []
 
                 # interpolate each frame
-                for x in range(calc_data_steps.time.size):
-                    grid = interpolator(x=calc_data_steps.lon_center, y=calc_data_steps.lat_center,
-                                        z=calc_data_steps.R.mean(dim='channel_id').isel(time=x),
+                for x in range(rain_values_steps.time.size):
+                    # convert DataArray into numpy array
+                    rain_values_steps_numpy = rain_values_steps.mean(dim='channel_id').isel(time=x).to_numpy()
+                    # use same rain values for all segments of the link
+                    # (using repeating of each value X times, where X is the number of link segments)
+                    rain_values_repeated = np.repeat(rain_values_steps_numpy, calc_data.segments.size)
+
+                    grid = interpolator(x=longs_1dim,
+                                        y=lats_1dim,
+                                        z=rain_values_repeated,
                                         xgrid=x_grid, ygrid=y_grid)
+
                     animation_rain_grids.append(grid)
 
-                    self.sig.progress_signal.emit({'prg_val': round((x / calc_data_steps.time.size) * 89) + 10})
+                    self.sig.progress_signal.emit({'prg_val': round((x / rain_values_steps.time.size) * 89) + 10})
 
                 # emit output
                 self.sig.plots_done_signal.emit({
                     "id": self.results_id,
-                    "link_data": calc_data_steps,
+                    "link_data": calc_data,
                     "x_grid": x_grid,
                     "y_grid": y_grid,
                     "rain_grids": animation_rain_grids,
