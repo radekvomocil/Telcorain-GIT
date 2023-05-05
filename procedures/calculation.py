@@ -1,5 +1,7 @@
 import array
 from typing import List
+
+import numpy
 import numpy as np
 import pycomlink as pycml
 import xarray as xr
@@ -50,6 +52,7 @@ class Calculation(QRunnable):
         self.idw_dist = idw_dist
         self.schleiss_val = schleiss_val
         self.schleiss_tau = schleiss_tau
+
     def run(self, ):
         print(f"[CALC ID: {self.results_id}] Rainfall calculation procedure started.", flush=True)
 
@@ -321,7 +324,8 @@ class Calculation(QRunnable):
                 SiteB = {"x": cml.site_b_longitude, "y": cml.site_b_latitude}
 
                 # Append coords to segList
-                segList.append(((float(SiteA["x"].data), float(SiteA["y"].data)), (float(SiteB["x"].data), float(SiteB["y"].data))))
+                segList.append(((float(SiteA["x"].data), float(SiteA["y"].data)),
+                                (float(SiteB["x"].data), float(SiteB["y"].data))))
 
                 # Counting distance in meters between Sites
                 distance: float = np.arccos(
@@ -365,8 +369,9 @@ class Calculation(QRunnable):
             # Calculating intersections
             isector = SweepIntersector()
             isecDic = isector.findIntersections(segList)
-            print("List: ", isecDic)
-            print(segList)
+            print("List: ", isecDic['0'])
+            # pepa = numpy.stack(isecDic, axis=0)
+            # print("LIST: ", pepa)
 
             # combine CMLs into one dataset
             calc_data = xr.concat(calc_data, dim='cml_id')
