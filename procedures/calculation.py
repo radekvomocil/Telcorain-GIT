@@ -1,7 +1,4 @@
-import array
-from typing import List
-
-import numpy
+import math
 import numpy as np
 import pycomlink as pycml
 import xarray as xr
@@ -369,9 +366,110 @@ class Calculation(QRunnable):
             # Calculating intersections
             isector = SweepIntersector()
             isecDic = isector.findIntersections(segList)
-            print("List: ", isecDic['0'])
-            # pepa = numpy.stack(isecDic, axis=0)
-            # print("LIST: ", pepa)
+            print(calc_data[0].R.data)
+            print("--------------")
+            print(calc_data[0].R.data.min)
+            #list, do kterého se budou ukládat vzdálenosti jednotlivých křížení jednoho spoje
+            distances = []
+            for o in range(0, len(list(isecDic.values())[0]) - 1):
+                distance = math.dist(list(isecDic.values())[0][o], list(isecDic.values())[0][o + 1])
+                distances.append(distance)
+            #list, do kterého se budou ukládat nejdelší úsečky křížení, přesněji teda souřadnice začátku a konce nejdelší úsečky daného spoje
+            CoordsOfLongestLinesOfLinks = []
+            #Vymyšlený algoritmus pro najití nejdelších úseček spojů, které se kříží
+            for r in range(0, len(isecDic)):
+                largestLine = max(distances)
+                for j in range(0, len(distances)):
+                    print("\n")
+                    if largestLine == distances[j]:
+                        print("Spoje pro nejdelší úsečku")
+                        print(f"Largest line is between points: {list(isecDic.values())[r][j]},->"
+                              f"{list(isecDic.values())[r][j + 1]}")
+                        CoordsOfLongestLinesOfLinks.append(((list(isecDic.values())[r][j]),
+                                                            (list(isecDic.values())[r][j + 1])))
+                        for q in range(0, len(isecDic)):
+                            for w in range(0, len(list(isecDic.values())[q])):
+                                if list(isecDic.values())[q][w] == list(isecDic.values())[r][j]:
+                                    for z in range(0, len(calc_data)):
+                                        if list(isecDic.values())[q][0][0] == calc_data[z].site_a_longitude.data and \
+                                                list(isecDic.values())[q][0][1] == calc_data[z].site_a_latitude.data and \
+                                                list(isecDic.values())[q][len(list(isecDic.values())[q]) - 1][0] == calc_data[z].site_b_longitude.data and \
+                                                list(isecDic.values())[q][len(list(isecDic.values())[q]) - 1][1] == calc_data[z].site_b_latitude.data:
+                                            print(f"Našel se spoj: {list(isecDic)[q]} -> "
+                                                  f"{list(isecDic)[r]}")
+                                            #TODO
+                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
+                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                            break
+                                        else:
+                                            continue
+                                else:
+                                    continue
+                        for u in range(0, len(isecDic)):
+                            for d in range(0, len(list(isecDic.values())[u])):
+                                if list(isecDic.values())[u][d] == list(isecDic.values())[r][j + 1]:
+                                    for s in range(0, len(calc_data)):
+                                        if list(isecDic.values())[u][0][0] == calc_data[s].site_a_longitude.data and \
+                                                list(isecDic.values())[u][0][1] == calc_data[s].site_a_latitude.data and \
+                                                list(isecDic.values())[u][len(list(isecDic.values())[u]) - 1][0] == calc_data[s].site_b_longitude.data and \
+                                                list(isecDic.values())[u][len(list(isecDic.values())[u]) - 1][1] == calc_data[s].site_b_latitude.data:
+                                            print(f"Našel/ly se spoj/e druhého bodu křížení:{list(isecDic)[u]} -> "
+                                                  f"{list(isecDic)[r]}")
+                                            #TODO
+                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
+                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                            break
+                                        else:
+                                            continue
+                                else:
+                                    continue
+                    else:
+                        print("Spoje pro menší úseky:")
+                        print((f"Smaller line is between points: {list(isecDic.values())[r][j]},->"
+                              f"{list(isecDic.values())[r][j + 1]}"))
+
+                        for f in range(0, len(isecDic)):
+                            for g in range(0, len(list(isecDic.values())[f])):
+                                if list(isecDic.values())[f][g] == list(isecDic.values())[r][j]:
+                                    for h in range(0, len(calc_data)):
+                                        if list(isecDic.values())[f][0][0] == calc_data[h].site_a_longitude.data and \
+                                                list(isecDic.values())[f][0][1] == calc_data[h].site_a_latitude.data and \
+                                                list(isecDic.values())[f][len(list(isecDic.values())[f]) - 1][0] == calc_data[h].site_b_longitude.data and \
+                                                list(isecDic.values())[f][len(list(isecDic.values())[f]) - 1][1] == calc_data[h].site_b_latitude.data:
+                                            print(f"Našel se spoj: {list(isecDic)[f]} -> "
+                                                  f"{list(isecDic)[r]}")
+                                            #TODO
+                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
+                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                            break
+                                        else:
+                                            continue
+                                else:
+                                    continue
+                        for h in range(0, len(isecDic)):
+                            for y in range(0, len(list(isecDic.values())[h])):
+                                if list(isecDic.values())[h][y] == list(isecDic.values())[r][j + 1]:
+                                    for k in range(0, len(calc_data)):
+                                        if list(isecDic.values())[h][0][0] == calc_data[k].site_a_longitude.data and \
+                                                list(isecDic.values())[h][0][1] == calc_data[k].site_a_latitude.data and \
+                                                list(isecDic.values())[h][len(list(isecDic.values())[h]) - 1][0] == calc_data[k].site_b_longitude.data and \
+                                                list(isecDic.values())[h][len(list(isecDic.values())[h]) - 1][1] == calc_data[k].site_b_latitude.data:
+                                            print(f"Našel/ly se spoj/e druhého bodu křížení:{list(isecDic)[h]} -> "
+                                                  f"{list(isecDic)[r]}")
+                                            #TODO
+                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
+                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                            break
+                                        else:
+                                            continue
+                                else:
+                                    continue
+
+                print("\n")
+                distances = []
+                for o in range(0, len(list(isecDic.values())[r]) - 1):
+                    distance = math.dist(list(isecDic.values())[r][o], list(isecDic.values())[r][o + 1])
+                    distances.append(distance)
 
             # combine CMLs into one dataset
             calc_data = xr.concat(calc_data, dim='cml_id')
