@@ -314,17 +314,15 @@ class Calculation(QRunnable):
             print(f"[CALC ID: {self.results_id}] Resampling rain values for rainfall overall map...")
             # Creating list for calculating intersections
             segList = []
-
+            for ww in range(0, len(calc_data)):
+                segList.append(((float(calc_data[ww].site_a_longitude.data), float(calc_data[ww].site_a_latitude.data)),
+                                (float(calc_data[ww].site_b_longitude.data), float(calc_data[ww].site_b_latitude.data))))
             for cml in calc_data:
                 # Putting coordinates into variables
                 SiteA = {"x": cml.site_a_longitude, "y": cml.site_a_latitude}
                 SiteB = {"x": cml.site_b_longitude, "y": cml.site_b_latitude}
 
-                # Append coords to segList
-                segList.append(((float(SiteA["x"].data), float(SiteA["y"].data)),
-                                (float(SiteB["x"].data), float(SiteB["y"].data))))
 
-                # Counting distance in meters between Sites
                 distance: float = np.arccos(
                     np.sin(SiteA["y"] * np.pi / 180) * np.sin(SiteB["y"] * np.pi / 180) + np.cos(
                         SiteA["y"] * np.pi / 180) * np.cos(SiteB["y"] * np.pi / 180) * np.cos(
@@ -366,110 +364,229 @@ class Calculation(QRunnable):
             # Calculating intersections
             isector = SweepIntersector()
             isecDic = isector.findIntersections(segList)
-            print(calc_data[0].R.data)
-            print("--------------")
-            print(calc_data[0].R.data.min)
-            #list, do kterého se budou ukládat vzdálenosti jednotlivých křížení jednoho spoje
+            # list, do kterého se budou ukládat vzdálenosti jednotlivých křížení jednoho spoje
             distances = []
             for o in range(0, len(list(isecDic.values())[0]) - 1):
                 distance = math.dist(list(isecDic.values())[0][o], list(isecDic.values())[0][o + 1])
                 distances.append(distance)
-            #list, do kterého se budou ukládat nejdelší úsečky křížení, přesněji teda souřadnice začátku a konce nejdelší úsečky daného spoje
+            # list, do kterého se budou ukládat nejdelší úsečky křížení, přesněji teda souřadnice začátku a konce nejdelší úsečky daného spoje
             CoordsOfLongestLinesOfLinks = []
-            #Vymyšlený algoritmus pro najití nejdelších úseček spojů, které se kříží
+            # Vymyšlený algoritmus pro najití nejdelších úseček spojů, které se kříží
             for r in range(0, len(isecDic)):
                 largestLine = max(distances)
                 for j in range(0, len(distances)):
-                    print("\n")
                     if largestLine == distances[j]:
                         print("Spoje pro nejdelší úsečku")
                         print(f"Largest line is between points: {list(isecDic.values())[r][j]},->"
                               f"{list(isecDic.values())[r][j + 1]}")
                         CoordsOfLongestLinesOfLinks.append(((list(isecDic.values())[r][j]),
                                                             (list(isecDic.values())[r][j + 1])))
+                        rain_values_for_longest_path_first_side = []
+                        rain_values_for_longest_path_second_side = []
                         for q in range(0, len(isecDic)):
                             for w in range(0, len(list(isecDic.values())[q])):
                                 if list(isecDic.values())[q][w] == list(isecDic.values())[r][j]:
                                     for z in range(0, len(calc_data)):
-                                        if list(isecDic.values())[q][0][0] == calc_data[z].site_a_longitude.data and \
-                                                list(isecDic.values())[q][0][1] == calc_data[z].site_a_latitude.data and \
-                                                list(isecDic.values())[q][len(list(isecDic.values())[q]) - 1][0] == calc_data[z].site_b_longitude.data and \
-                                                list(isecDic.values())[q][len(list(isecDic.values())[q]) - 1][1] == calc_data[z].site_b_latitude.data:
+                                        if list(isecDic.values())[q][0][0] == calc_data[
+                                            z].site_a_longitude.data and \
+                                                list(isecDic.values())[q][0][1] == calc_data[
+                                            z].site_a_latitude.data and \
+                                                list(isecDic.values())[q][
+                                                    len(list(isecDic.values())[q]) - 1][0] \
+                                                == calc_data[z].site_b_longitude.data and \
+                                                list(isecDic.values())[q][
+                                                    len(list(isecDic.values())[q]) - 1][1] == calc_data[
+                                            z].site_b_latitude.data:
                                             print(f"Našel se spoj: {list(isecDic)[q]} -> "
                                                   f"{list(isecDic)[r]}")
-                                            #TODO
-                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
-                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                            rain_values_for_longest_path_first_side.append(
+                                                float(calc_data[z].R.mean().data))
                                             break
                                         else:
                                             continue
                                 else:
                                     continue
+                        lowestRainValueForLongestPathFirstSide = min(
+                            rain_values_for_longest_path_first_side)
                         for u in range(0, len(isecDic)):
                             for d in range(0, len(list(isecDic.values())[u])):
                                 if list(isecDic.values())[u][d] == list(isecDic.values())[r][j + 1]:
                                     for s in range(0, len(calc_data)):
-                                        if list(isecDic.values())[u][0][0] == calc_data[s].site_a_longitude.data and \
-                                                list(isecDic.values())[u][0][1] == calc_data[s].site_a_latitude.data and \
-                                                list(isecDic.values())[u][len(list(isecDic.values())[u]) - 1][0] == calc_data[s].site_b_longitude.data and \
-                                                list(isecDic.values())[u][len(list(isecDic.values())[u]) - 1][1] == calc_data[s].site_b_latitude.data:
-                                            print(f"Našel/ly se spoj/e druhého bodu křížení:{list(isecDic)[u]} -> "
-                                                  f"{list(isecDic)[r]}")
-                                            #TODO
-                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
-                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                        if list(isecDic.values())[u][0][0] == calc_data[
+                                            s].site_a_longitude.data and \
+                                                list(isecDic.values())[u][0][1] == calc_data[
+                                            s].site_a_latitude.data and \
+                                                list(isecDic.values())[u][
+                                                    len(list(isecDic.values())[u]) - 1][0] \
+                                                == calc_data[s].site_b_longitude.data and \
+                                                list(isecDic.values())[u][
+                                                    len(list(isecDic.values())[u]) - 1][1] \
+                                                == calc_data[s].site_b_latitude.data:
+                                            print(
+                                                f"Našel/ly se spoj/e druhého bodu křížení:{list(isecDic)[u]} -> "
+                                                f"{list(isecDic)[r]}")
+                                            rain_values_for_longest_path_second_side.append(
+                                                float(calc_data[s].R.mean().data))
                                             break
                                         else:
                                             continue
                                 else:
                                     continue
+                        lowestRainValueForLongestPathSecondSide = min(
+                            rain_values_for_longest_path_second_side)
+                        if len(rain_values_for_longest_path_first_side) == 1 or len(
+                                rain_values_for_longest_path_second_side) == 1:
+                            middlepart = []
+                            halfOfLongestLongitude = (list(isecDic.values())[r][j][0] +
+                                                      list(isecDic.values())[r][j + 1][0]) / 2
+                            halfOfLongestLatitude = (list(isecDic.values())[r][j][1] +
+                                                     list(isecDic.values())[r][j + 1][1]) / 2
+                            middlepart.append((halfOfLongestLongitude, halfOfLongestLatitude))
+                            for c in range(0, len(calc_data)):
+                                if lowestRainValueForLongestPathFirstSide == float(
+                                        calc_data[c].R.mean().data):
+                                    print("levá <-> střed")
+                                    # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj levá - střed
+                                    break
+                                else:
+                                    continue
+                            for b in range(0, len(calc_data)):
+                                if lowestRainValueForLongestPathSecondSide == float(
+                                        calc_data[b].R.mean().data):
+                                    print("střed <-> pravá")
+                                    # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj střed - pravá
+                                    break
+                                else:
+                                    continue
+                        else:
+                            threeparts = []
+                            firstThirdLongitude = (list(isecDic.values())[r][j][0] +
+                                                   list(isecDic.values())[r][j + 1][0]) / 3
+                            firstThirdLatitude = (list(isecDic.values())[r][j][1] +
+                                                  list(isecDic.values())[r][j + 1][1]) / 3
+                            secondThirdLongitude = (list(isecDic.values())[r][j][0] +
+                                                    list(isecDic.values())[r][j + 1][0]) * 2 / 3
+                            secondThirdLatitude = (list(isecDic.values())[r][j][1] +
+                                                   list(isecDic.values())[r][j + 1][1]) * 2 / 3
+                            threeparts.append((firstThirdLongitude, firstThirdLatitude))
+                            threeparts.append((secondThirdLongitude, secondThirdLatitude))
+
+                            for v in range(0, len(calc_data)):
+                                if lowestRainValueForLongestPathFirstSide == float(
+                                        calc_data[v].R.mean().data):
+                                    print("levá <-> střed(levá)")
+                                    # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj levá - střed(levá)
+                                    break
+                                else:
+                                    continue
+                            for n in range(0, len(calc_data)):
+                                if lowestRainValueForLongestPathSecondSide == float(
+                                        calc_data[n].R.mean().data):
+                                    print("střed(pravá) <-> pravá")
+                                    # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj střed(pravá) - pravá
+                                    break
+                                else:
+                                    continue
+                            # TODO - Přidat přiřazení střední části - střed(levá) - střed(pravá) hodnotu původního spoje ([r][j]
                     else:
                         print("Spoje pro menší úseky:")
                         print((f"Smaller line is between points: {list(isecDic.values())[r][j]},->"
-                              f"{list(isecDic.values())[r][j + 1]}"))
-
+                               f"{list(isecDic.values())[r][j + 1]}"))
+                        rain_values_for_shorter_path_first_side = []
+                        rain_values_for_shorter_path_second_side = []
                         for f in range(0, len(isecDic)):
                             for g in range(0, len(list(isecDic.values())[f])):
                                 if list(isecDic.values())[f][g] == list(isecDic.values())[r][j]:
                                     for h in range(0, len(calc_data)):
-                                        if list(isecDic.values())[f][0][0] == calc_data[h].site_a_longitude.data and \
-                                                list(isecDic.values())[f][0][1] == calc_data[h].site_a_latitude.data and \
-                                                list(isecDic.values())[f][len(list(isecDic.values())[f]) - 1][0] == calc_data[h].site_b_longitude.data and \
-                                                list(isecDic.values())[f][len(list(isecDic.values())[f]) - 1][1] == calc_data[h].site_b_latitude.data:
+                                        if list(isecDic.values())[f][0][0] == calc_data[
+                                            h].site_a_longitude.data and \
+                                                list(isecDic.values())[f][0][1] == calc_data[
+                                            h].site_a_latitude.data and \
+                                                list(isecDic.values())[f][
+                                                    len(list(isecDic.values())[f]) - 1][0] == calc_data[
+                                            h].site_b_longitude.data and \
+                                                list(isecDic.values())[f][
+                                                    len(list(isecDic.values())[f]) - 1][1] == calc_data[
+                                            h].site_b_latitude.data:
                                             print(f"Našel se spoj: {list(isecDic)[f]} -> "
                                                   f"{list(isecDic)[r]}")
-                                            #TODO
-                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
-                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                            rain_values_for_shorter_path_first_side.append(
+                                                float(calc_data[h].R.mean().data))
                                             break
                                         else:
                                             continue
                                 else:
                                     continue
-                        for h in range(0, len(isecDic)):
-                            for y in range(0, len(list(isecDic.values())[h])):
-                                if list(isecDic.values())[h][y] == list(isecDic.values())[r][j + 1]:
+                        lowestRainValueForShorterPathFirstSide = min(
+                            rain_values_for_shorter_path_first_side)
+                        for hh in range(0, len(isecDic)):
+                            for y in range(0, len(list(isecDic.values())[hh])):
+                                if list(isecDic.values())[hh][y] == list(isecDic.values())[r][j + 1]:
                                     for k in range(0, len(calc_data)):
-                                        if list(isecDic.values())[h][0][0] == calc_data[k].site_a_longitude.data and \
-                                                list(isecDic.values())[h][0][1] == calc_data[k].site_a_latitude.data and \
-                                                list(isecDic.values())[h][len(list(isecDic.values())[h]) - 1][0] == calc_data[k].site_b_longitude.data and \
-                                                list(isecDic.values())[h][len(list(isecDic.values())[h]) - 1][1] == calc_data[k].site_b_latitude.data:
-                                            print(f"Našel/ly se spoj/e druhého bodu křížení:{list(isecDic)[h]} -> "
-                                                  f"{list(isecDic)[r]}")
-                                            #TODO
-                                            #Všechny R hodnoty nalezených spojů se budou ukládat do listu a následně porovnávat, nižší hodnota bude aplikována na 1/3 spoje
-                                            #Pokud bude v listu jenom jedna hodnota, znamená to, že bod je krajní a na danou třetinu se aplikuje jeho hodnota R
+                                        if list(isecDic.values())[hh][0][0] == calc_data[
+                                            k].site_a_longitude.data and \
+                                                list(isecDic.values())[hh][0][1] == calc_data[
+                                            k].site_a_latitude.data and \
+                                                list(isecDic.values())[hh][
+                                                    len(list(isecDic.values())[hh]) - 1][0] == \
+                                                calc_data[k].site_b_longitude.data and \
+                                                list(isecDic.values())[hh][
+                                                    len(list(isecDic.values())[hh]) - 1][1] == \
+                                                calc_data[k].site_b_latitude.data:
+                                            print(
+                                                f"Našel/ly se spoj/e druhého bodu křížení:{list(isecDic)[hh]} -> "
+                                                f"{list(isecDic)[r]}")
+                                            rain_values_for_shorter_path_second_side.append(
+                                                float(calc_data[h].R.mean().data))
                                             break
                                         else:
                                             continue
                                 else:
                                     continue
-
+                        lowestRainValueForShorterPathSecondSide = min(
+                            rain_values_for_shorter_path_second_side)
+                        if len(rain_values_for_shorter_path_first_side) == 1 or len(
+                                rain_values_for_shorter_path_second_side) == 1:
+                            lowestRainValue = min(lowestRainValueForShorterPathFirstSide,
+                                                  lowestRainValueForShorterPathSecondSide)
+                            for m in range(0, len(calc_data)):
+                                if lowestRainValue == float(calc_data[m].R.mean().data):
+                                    print("Celý spoj")
+                                    break
+                                    # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro celý spoj
+                        else:
+                            middlepart_short_path = []
+                            halfOfShorterPathLongitude = (list(isecDic.values())[r][j][0] +
+                                                          list(isecDic.values())[r][j + 1][0]) / 2
+                            halfOfShorterPathLatitude = (list(isecDic.values())[r][j][1] +
+                                                         list(isecDic.values())[r][j + 1][1]) / 2
+                            middlepart_short_path.append(
+                                (halfOfShorterPathLongitude, halfOfShorterPathLatitude))
+                            for qq in range(0, len(calc_data)):
+                                if lowestRainValueForShorterPathFirstSide == float(
+                                        calc_data[qq].R.mean().data):
+                                    print("levá <-> střed")
+                                    # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj levá - střed
+                                    break
+                                else:
+                                    continue
+                            for ww in range(0, len(calc_data)):
+                                if lowestRainValueForShorterPathSecondSide == float(
+                                        calc_data[ww].R.mean().data):
+                                    print("střed <-> pravá")
+                                    # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj střed - pravá
+                                    break
+                                else:
+                                    continue
                 print("\n")
                 distances = []
-                for o in range(0, len(list(isecDic.values())[r]) - 1):
-                    distance = math.dist(list(isecDic.values())[r][o], list(isecDic.values())[r][o + 1])
-                    distances.append(distance)
+                if r == len(isecDic) - 1:
+                    continue
+                else:
+                    for oo in range(0, len(list(isecDic.values())[(r + 1)]) - 1):
+                        distance = math.dist(list(isecDic.values())[(r + 1)][oo],
+                                             list(isecDic.values())[(r + 1)][oo + 1])
+                        distances.append(distance)
 
             # combine CMLs into one dataset
             calc_data = xr.concat(calc_data, dim='cml_id')
