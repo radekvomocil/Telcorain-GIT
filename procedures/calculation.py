@@ -19,10 +19,10 @@ class CalcSignals(QObject):
 class Calculation(QRunnable):
     # TODO: load from options
     # rendered area borders
-    X_MIN = 14.21646819
-    X_MAX = 14.70604375
-    Y_MIN = 49.91505682
-    Y_MAX = 50.22841327
+    X_MIN = 14.2353081
+    X_MAX = 14.72488366
+    Y_MIN = 49.899655185
+    Y_MAX = 50.213011635
 
     def __init__(self, signals: CalcSignals, results_id: int, links: dict, selection: dict, start: QDateTime,
                  end: QDateTime, interval: int, rolling_vals: int, output_step: int, is_only_overall: bool,
@@ -345,13 +345,10 @@ class Calculation(QRunnable):
 
             lats_numpy = calc_data.lat_array.to_numpy()  # convert DataArray into numpy array
             longs_numpy = calc_data.long_array.to_numpy()  # convert DataArray into numpy array
-            #cmls_reference = calc_data.cml_reference.to_numpy()
-            #cmls_reference_1dim = cmls_reference.ravel()
             lats_1dim = lats_numpy.ravel()  # convert into 1-dimensional array
             longs_1dim = longs_numpy.ravel()  # convert into 1-dimensional array
-            lats_1dim = lats_1dim[~np.isnan(lats_1dim)]
-            longs_1dim = longs_1dim[~np.isnan(longs_1dim)]
-            #cmls_reference_1dim = cmls_reference_1dim[~np.isnan(cmls_reference_1dim)]
+            lats_1dim = lats_1dim[~np.isnan(lats_1dim)]  # Delete NaN values from lats_1dim
+            longs_1dim = longs_1dim[~np.isnan(longs_1dim)]  # Delete NaN values from lats_1dim
 
             rain_values_total_numpy = rain_values_total.to_numpy()  # convert DataArray into numpy array
             # use same rain values for all segments of the link

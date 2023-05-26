@@ -75,7 +75,8 @@ def intersections(calc_data, isecDic):
         long_coords_intersections = []
         lat_coords_intersections = []
         cml_references = []
-
+        number = 0
+        number += 1
         largestLine = max(distances)
         for j in range(0, len(distances)):
             if largestLine == distances[j]:
@@ -156,7 +157,7 @@ def intersections(calc_data, isecDic):
                                 print("levá <-> střed")
                                 long_coords_intersections.append(list(isecDic.values())[r][j][0])
                                 lat_coords_intersections.append(list(isecDic.values())[r][j][1])
-                                find_number_of_intersections.append('j')
+                                find_number_of_intersections.append(number)
                                 cml_references.append(int(calc_data[c].cml_id.data))
                                 # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj levá - střed
                                 break
@@ -164,7 +165,7 @@ def intersections(calc_data, isecDic):
                             continue
                     long_coords_intersections.append(halfOfLongestLongitude)
                     lat_coords_intersections.append(halfOfLongestLatitude)
-                    find_number_of_intersections.append('j')
+                    find_number_of_intersections.append(number)
                     cml_references.append(int(calc_data[c].cml_id.data))
                     # TODO - Přiřadit menší z těch dvou
 
@@ -174,7 +175,7 @@ def intersections(calc_data, isecDic):
                             print("střed <-> pravá")
                             long_coords_intersections.append(list(isecDic.values())[r][j + 1][0])
                             lat_coords_intersections.append(list(isecDic.values())[r][j + 1][1])
-                            find_number_of_intersections.append('j')
+                            find_number_of_intersections.append(number)
                             cml_references.append(int(calc_data[b].cml_id.data))
                             # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj střed - pravá
                             break
@@ -183,15 +184,15 @@ def intersections(calc_data, isecDic):
                 else:
                     threeparts = []
                     firstThirdLongitude = abs(((list(isecDic.values())[r][j][0] -
-                                            list(isecDic.values())[r][j + 1][0]) / 3)) + list(isecDic.values())[r][j][0]
+                                            list(isecDic.values())[r][j + 1][0]) / 3) - list(isecDic.values())[r][j][0])
                     firstThirdLatitude = abs(((list(isecDic.values())[r][j][1] -
-                                           list(isecDic.values())[r][j + 1][1]) / 3)) + list(isecDic.values())[r][j][1]
+                                           list(isecDic.values())[r][j + 1][1]) / 3) - list(isecDic.values())[r][j][1])
                     secondThirdLongitude = abs(((list(isecDic.values())[r][j][0] -
-                                             list(isecDic.values())[r][j + 1][0]) * 2 / 3)) + \
-                                           list(isecDic.values())[r][j][0]
+                                             list(isecDic.values())[r][j + 1][0]) * 2 / 3) - \
+                                           list(isecDic.values())[r][j][0])
                     secondThirdLatitude = abs(((list(isecDic.values())[r][j][1] -
-                                            list(isecDic.values())[r][j + 1][1]) * 2 / 3)) + \
-                                           list(isecDic.values())[r][j][1]
+                                            list(isecDic.values())[r][j + 1][1]) * 2 / 3) - \
+                                           list(isecDic.values())[r][j][1])
                     threeparts.append((firstThirdLongitude, firstThirdLatitude))
                     threeparts.append((secondThirdLongitude, secondThirdLatitude))
 
@@ -204,7 +205,7 @@ def intersections(calc_data, isecDic):
                                 print("levá <-> střed(levá)")
                                 long_coords_intersections.append(list(isecDic.values())[r][j][0])
                                 lat_coords_intersections.append(list(isecDic.values())[r][j][1])
-                                find_number_of_intersections.append('j')
+                                find_number_of_intersections.append(number)
                                 cml_references.append(int(calc_data[v].cml_id.data))
                                 # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj levá - střed(levá)
                                 break
@@ -213,10 +214,10 @@ def intersections(calc_data, isecDic):
                     print("střed(levá) <-> střed(pravá)")
                     long_coords_intersections.append(firstThirdLongitude)
                     lat_coords_intersections.append(firstThirdLatitude)
-                    find_number_of_intersections.append('j')
+                    find_number_of_intersections.append(number)
                     long_coords_intersections.append(secondThirdLongitude)
                     lat_coords_intersections.append(secondThirdLatitude)
-                    find_number_of_intersections.append('j')
+                    find_number_of_intersections.append(number)
                     for gg in range(0, len(calc_data)):
                         if list(isecDic.values())[r][0][0] == calc_data[gg].site_a_longitude.data and \
                                 list(isecDic.values())[r][0][1] == calc_data[gg].site_a_latitude.data and \
@@ -234,7 +235,7 @@ def intersections(calc_data, isecDic):
                             print("střed(pravá) <-> pravá")
                             long_coords_intersections.append(list(isecDic.values())[r][j + 1][0])
                             lat_coords_intersections.append(list(isecDic.values())[r][j + 1][1])
-                            find_number_of_intersections.append('j')
+                            find_number_of_intersections.append(number)
                             cml_references.append(int(calc_data[n].cml_id.data))
                             # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj střed(pravá) - pravá
                             break
@@ -309,7 +310,7 @@ def intersections(calc_data, isecDic):
                                     "Celý spoj je, ale přeskočilo se, už je v listu souřadnic levé křížení a přidalo se pouze pravé")
                                 long_coords_intersections.append(list(isecDic.values())[r][j + 1][0])
                                 lat_coords_intersections.append(list(isecDic.values())[r][j + 1][1])
-                                find_number_of_intersections.append('j')
+                                find_number_of_intersections.append(number)
                                 cml_references.append(int(calc_data[m].cml_id.data))
                                 break
                             else:
@@ -318,8 +319,8 @@ def intersections(calc_data, isecDic):
                                 lat_coords_intersections.append(list(isecDic.values())[r][j][1])
                                 long_coords_intersections.append(list(isecDic.values())[r][j + 1][0])
                                 lat_coords_intersections.append(list(isecDic.values())[r][j + 1][1])
-                                find_number_of_intersections.append('j')
-                                find_number_of_intersections.append('j')
+                                find_number_of_intersections.append(number)
+                                find_number_of_intersections.append(number)
                                 cml_references.append(int(calc_data[m].cml_id.data))
                                 cml_references.append(int(calc_data[m].cml_id.data))
                                 break
@@ -342,7 +343,7 @@ def intersections(calc_data, isecDic):
                                 print("levá <-> střed")
                                 long_coords_intersections.append(list(isecDic.values())[r][j][0])
                                 lat_coords_intersections.append(list(isecDic.values())[r][j][1])
-                                find_number_of_intersections.append('j')
+                                find_number_of_intersections.append(number)
                                 cml_references.append(int(calc_data[qq].cml_id.data))
                                 # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj levá - střed
                                 break
@@ -350,7 +351,7 @@ def intersections(calc_data, isecDic):
                             continue
                     long_coords_intersections.append(halfOfShorterPathLongitude)
                     lat_coords_intersections.append(halfOfShorterPathLatitude)
-                    find_number_of_intersections.append('j')
+                    find_number_of_intersections.append(number)
                     cml_references.append(int(calc_data[qq].cml_id.data))
                     for ww in range(0, len(calc_data)):
                         if lowestRainValueForShorterPathSecondSide == float(
@@ -358,9 +359,8 @@ def intersections(calc_data, isecDic):
                             print("střed <-> pravá")
                             long_coords_intersections.append(list(isecDic.values())[r][j + 1][0])
                             lat_coords_intersections.append(list(isecDic.values())[r][j + 1][1])
-                            find_number_of_intersections.append('j')
+                            find_number_of_intersections.append(number)
                             cml_references.append(int(calc_data[ww].cml_id.data))
-                            # TODO - Přidat přiřazení hodnoty (calc_data[c].R) pro spoj střed - pravá
                             break
                         else:
                             continue
