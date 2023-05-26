@@ -23,8 +23,8 @@ class Canvas(FigureCanvasQTAgg):
         self.fig.subplots_adjust(left, bottom, right, top)
 
         # TODO: load path from options
-        bg_map = pyplot.imread('./maps/prague_35x35.png')
-        self.ax.imshow(bg_map, zorder=0, extent=(x_min, x_max, y_min, y_max), aspect='auto')
+        #bg_map = pyplot.imread('./maps/prague_35x35.png')
+        #self.ax.imshow(bg_map, zorder=0, extent=(x_min, x_max, y_min, y_max), aspect='auto')
 
         super(Canvas, self).__init__(self.fig)
 
@@ -41,10 +41,10 @@ class Canvas(FigureCanvasQTAgg):
 class ResultsWidget(QWidget):
     # TODO: load from options
     # rendered area borders
-    X_MIN = 14.21646819
-    X_MAX = 14.70604375
-    Y_MIN = 49.91505682
-    Y_MAX = 50.22841327
+    X_MIN = 14.2353081
+    X_MAX = 14.72488366
+    Y_MIN = 49.899655185
+    Y_MAX = 50.213011635
 
     # animation speed constant, later speed control can be implemented
     ANIMATION_SPEED = 1000

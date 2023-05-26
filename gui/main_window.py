@@ -20,7 +20,7 @@ from gui.results_widget import ResultsWidget
 # TODO: move Control Tab elements into separate widget. Currently, this class contains main logic + Control Tab widgets.
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> object:
         super(MainWindow, self).__init__()
 
         # ////// GUI CONSTRUCTOR \\\\\\
@@ -87,6 +87,7 @@ class MainWindow(QMainWindow):
         self.spin_baseline_samples = self.findChild(QSpinBox, "spinBaselineSamples")
         self.spin_output_step = self.findChild(QSpinBox, "spinOutputStep")
         self.spin_interpol_res = self.findChild(QDoubleSpinBox, "spinInterResolution")
+        self.spin_segment_size = self.findChild(QSpinBox, "spinSegmentSize")
         self.spin_idw_power = self.findChild(QSpinBox, "spinIdwPower")
         self.spin_idw_near = self.findChild(QSpinBox, "spinIdwNear")
         self.spin_idw_dist = self.findChild(QDoubleSpinBox, "spinIdwDist")
@@ -286,6 +287,7 @@ class MainWindow(QMainWindow):
         wet_dry_deviation = self.spin_wet_dry_sd.value()
         baseline_samples = self.spin_baseline_samples.value()
         interpol_res = self.spin_interpol_res.value()
+        segment_size = self.spin_segment_size.value()
         idw_power = self.spin_idw_power.value()
         idw_near = self.spin_idw_near.value()
         idw_dist = self.spin_idw_dist.value()
@@ -326,7 +328,7 @@ class MainWindow(QMainWindow):
             # create calculation instance
             calculation = calc.Calculation(self.calc_signals, self.result_id, self.links, self.current_selection, start,
                                            end, step, rolling_values, output_step, is_only_overall, is_output_total,
-                                           wet_dry_deviation, baseline_samples, interpol_res, idw_power, idw_near,
+                                           wet_dry_deviation, baseline_samples, interpol_res, segment_size, idw_power, idw_near,
                                            idw_dist, waa_schleiss_val, waa_schleiss_tau)
 
             if self.results_name.text() == "":
@@ -340,6 +342,7 @@ class MainWindow(QMainWindow):
                 'sd': wet_dry_deviation,
                 'base_smp': baseline_samples,
                 'resolution': interpol_res,
+                'segment_size': segment_size,
                 'pow': idw_power,
                 'near': idw_near,
                 'dist': idw_dist,
